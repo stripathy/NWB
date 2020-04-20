@@ -118,9 +118,14 @@ class ABF1Converter:
         self.start_time =  self.abfFiles[0].abfDateTime
         self.inputCellName = os.path.basename(self.inputPath)
 
+        creatorInfo = self.abfFiles[0]._headerV1.sCreatorInfo
+        creatorVersion = self.abfFiles[0]._headerV1.creatorVersionString
+        experiment_description = (f"{creatorInfo} v{creatorVersion}")
+
         self.NWBFile = NWBFile(
             session_description="",
             session_start_time=self.start_time,
+            experiment_description = experiment_description,
             identifier=self.inputCellName,
             file_create_date= datetime.now(tzlocal()),
             experimenter=None,
