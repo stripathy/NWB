@@ -35,7 +35,8 @@ class ABF1Converter:
                          the stimulus is recorded as well.
     """
 
-    def __init__(self, inputPath, outputFilePath, gain=None, acquisitionChannelName=None, stimulusChannelName=None):
+    def __init__(self, inputPath, outputFilePath, acquisitionChannelName=None, stimulusChannelName=None, 
+      responseGain = 1, stimulusGain = 1, responseOffset = 0, clampMode = None):
 
         self.inputPath = inputPath
         self.debug=False
@@ -80,14 +81,18 @@ class ABF1Converter:
 
                 self.abfFiles += [abf]
 
+        if clampMode:
+          self.clampMode = clampMode # sometimes the abf-based clamp mode is wrong
+        else:
+          self.clampMode = self.abfFiles[0]._headerV1.nExperimentType
+
         self.outputPath = outputFilePath
 
         # Take metadata input, and return hard coded values for None
 
-        if gain:
-            self.gain = gain
-        else:
-            self.gain = 1.0
+        self.responseGain = responseGain
+        self.stimulusGain = stimulusGain
+        self.responseOffset = responseOffset
 
         self.acquisitionChannelName = acquisitionChannelName
         self.stimulusChannelName    = stimulusChannelName
@@ -156,6 +161,8 @@ class ABF1Converter:
             return 1.0, 'A'
         elif unit == 'pA':
             return 1e-12, 'A'
+        elif unit == 'nA':
+            return 1e-9, 'A'
         else:
             # raise ValueError(f"{unit} is not a valid unit.")
             return 1.0, 'V'  # hard coded for units stored as '?'
@@ -168,8 +175,6 @@ class ABF1Converter:
         Voltage Clamp Mode = 0
         Current Clamp Mode = 1
         """
-
-        self.clampMode = self.abfFiles[0]._headerV1.nExperimentType
 
         return self.clampMode
 
@@ -217,9 +222,11 @@ class ABF1Converter:
                         data = abfFile.sweepY
                         scaledUnit = abfFile.sweepUnitsY
 
+                    stimulusGain = self.stimulusGain
+                    data = data * stimulusGain
+
                     conversion, unit = self._unitConversion(scaledUnit)
                     electrode = self.electrode
-                    gain = 1.0  # hard coded for White Noise data
                     resolution = np.nan
                     starting_time = 0.0
                     rate = float(abfFile.dataRate)
@@ -248,7 +255,7 @@ class ABF1Converter:
                                              data=data,
                                              sweep_number=i,
                                              electrode=electrode,
-                                             gain=gain,
+                                             gain=stimulusGain,
                                              resolution=resolution,
                                              conversion=conversion,
                                              starting_time=starting_time,
@@ -289,10 +296,12 @@ class ABF1Converter:
                     # Collect data from pyABF
                     abfFile.setSweep(i, channel=channelIndex)
                     seriesName = f"Index_{idx}_{i}_{channelIndex}"
-                    data = abfFile.sweepY
+                    responseGain = self.responseGain
+                    responseOffset = self.responseOffset
+
+                    data = abfFile.sweepY * responseGain + responseOffset
                     conversion, unit = self._unitConversion(abfFile.sweepUnitsY)
                     electrode = self.electrode
-                    gain = 1.0  # hard coded for White Noise data
                     resolution = np.nan
                     starting_time = 0.0
                     rate = float(abfFile.dataRate)
@@ -311,12 +320,12 @@ class ABF1Converter:
 
                     data = createCompressedDataset(data)
 
-                    if self.clampMode == 0:
+                    if self.clampMode == 1:
                         acquisition = CurrentClampSeries(name=seriesName,
                                                          data=data,
                                                          sweep_number=i,
                                                          electrode=electrode,
-                                                         gain=gain,
+                                                         gain=responseGain,
                                                          resolution=resolution,
                                                          conversion=conversion,
                                                          starting_time=starting_time,
@@ -328,12 +337,12 @@ class ABF1Converter:
                                                          capacitance_compensation=np.nan,
                                                          )
 
-                    elif self.clampMode == 1:
+                    elif self.clampMode == 0:
                         acquisition = VoltageClampSeries(name=seriesName,
                                                          data=data,
                                                          sweep_number=i,
                                                          electrode=electrode,
-                                                         gain=gain,
+                                                         gain=responseGain,
                                                          resolution=resolution,
                                                          conversion=conversion,
                                                          starting_time=starting_time,
