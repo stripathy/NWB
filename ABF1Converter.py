@@ -28,11 +28,13 @@ class ABF1Converter:
     ----------
     inputPath: path to ABF file or a folder of ABF files to be converted
     outputFilePath: path to the output NWB file
-    gain: user-input value
     acquisitionChannelName: Allows to output only a specific acquisition channel, defaults to all
     stimulusChannelName: Allows to output only a specific stimulus channel,
                          defaults to all. The name can also be an AD channel name for cases where
                          the stimulus is recorded as well.
+    responseGain: user-input float indicating scalar gain for response channel
+    stimulusGain: user-input float indicating scalar gain for stimulus channel
+    clampMode: 0 or 1 integer indicating clamp mode (0 is VC, 1 is CC). If not None, overwrites clamp mode provided in ABF file
     """
 
     def __init__(self, inputPath, outputFilePath, acquisitionChannelName=None, stimulusChannelName=None, 
